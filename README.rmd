@@ -1,0 +1,3 @@
+# Projekt szeregi czasowe
+
+[Brytyjski odpowiednik GUS-u](https://www.ons.gov.uk/economy/nationalaccounts/satelliteaccounts/datasets/consumertrends) Kolumna `AHM` od wiersza 81 do końca
