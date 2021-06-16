@@ -2,7 +2,7 @@
 title: "Szeregi czasowe - Projekt"
 author: "Patryk Gronkiewicz 164157"
 subtitle: Analiza konsumpcji i wydatków na komunikację w UK
-output: pdf_document
+output: bookdown::pdf_document2
 papersize: a4
 lang: pl
 toc: true
@@ -14,24 +14,50 @@ highlight: tango
 
 W projekcie użyto danych na temat:
 
-1.  [Całkowitego kosztu konsumpcji w gospodarstwach domowych UK](https://www.ons.gov.uk/economy/nationalaccounts/satelliteaccounts/timeseries/abqi/ct) jako szereg z sezonowością (zawiera także trend).
-2.  [Wydatków na komunikację w UK](https://www.ons.gov.uk/economy/nationalaccounts/satelliteaccounts/timeseries/zawv/ct) jako szereg z trendem.
+1.  [Całkowitego kosztu konsumpcji w gospodarstwach domowych
+    UK](https://www.ons.gov.uk/economy/nationalaccounts/satelliteaccounts/timeseries/abqi/ct)
+    jako szereg z sezonowością (zawiera także trend).
+2.  [Wydatków na komunikację w
+    UK](https://www.ons.gov.uk/economy/nationalaccounts/satelliteaccounts/timeseries/zawv/ct)
+    jako szereg z trendem.
 
-Dane te pochodzą z ONS (odpowiednik GUS-u). W analizie zostanie pominięty okres od 2019Q4 jako anomalia ze względu na pandemię.
+Dane te pochodzą z ONS (odpowiednik GUS-u). W analizie zostanie pominięty okres
+od 2019Q4 jako anomalia ze względu na pandemię.
 
-Już na oficjalnej stronie można zauważyć, że dane te w obu przypadkach zawierają wyraźny trend wzrostowy, natomiast jedynie całkowity koszt konsumpcji ma wyraźną sezonowość z peakiem w czwartym kwartale każdego roku.
+Już na oficjalnej stronie można zauważyć, że dane te w obu przypadkach zawierają
+wyraźny trend wzrostowy, natomiast jedynie całkowity koszt konsumpcji ma wyraźną
+sezonowość z peakiem w czwartym kwartale każdego roku.
 
-Szereg zawierający dane nt. komunikacji odnosi się do wydatków na usługi pocztowe oraz telefon i fax (z uwzględnieniem sprzętu, jak i usług).
+Szereg zawierający dane nt. komunikacji odnosi się do wydatków na usługi
+pocztowe oraz telefon i fax (z uwzględnieniem sprzętu, jak i usług).
 
-W danych dotyczących wydatków Brytyjczyków uwzględnione zostały wydatki w gospodarstwach zarówno rezydentów i nierezydentów (osób posiadających brytyjski paszport lub nie - jest to koncept inny od obywateli państwa)
+W danych dotyczących wydatków Brytyjczyków uwzględnione zostały wydatki w
+gospodarstwach zarówno rezydentów i nierezydentów (osób posiadających brytyjski
+paszport lub nie - jest to koncept inny od obywateli państwa)
 
-W obu przypadkach dane opublikowane zostały 31.03.2021 roku z danymi za 2020Q4, więc można zauważyć, że dostępne są z kwartalnym opóźnieniem.
+W obu przypadkach dane opublikowane zostały 31.03.2021 roku z danymi za 2020Q4,
+więc można zauważyć, że dostępne są z kwartalnym opóźnieniem.
 
-Analiza tych szeregów pozwala na lepsze planowanie wydatków, nawet na poziomie pojedynczego gospodarstwa ze względu na możliwość uwzględnienia wzrostu cen czy inflacji stylu życia. Analiza wydatków na komunikację jest także dobrym wskaźnikiem do przekazania jak bardzo "zdalne" społeczeństwo jest. W społeczeństwie, w którym małe grupy ludzi dzielą znaczne odległości wydatki na takie usługi będą wyższe ze względu na częstość wykorzystania takich możliwości.
+Analiza tych szeregów pozwala na lepsze planowanie wydatków, nawet na poziomie
+pojedynczego gospodarstwa ze względu na możliwość uwzględnienia wzrostu cen czy
+inflacji stylu życia. Analiza wydatków na komunikację jest także dobrym
+wskaźnikiem do przekazania jak bardzo "zdalne" społeczeństwo jest. W
+społeczeństwie, w którym małe grupy ludzi dzielą znaczne odległości wydatki na
+takie usługi będą wyższe ze względu na częstość wykorzystania takich możliwości.
 
-# Główne cechy danych
+Do ich obróbki zostały użyte biblioteki zaimportowane poniżej
 
-Na początku dane zostały załadowane z plików CSV. W nie interesują nas niektóre z linii widocznych w pliku (linie 1-44 ze względu na metadane i dane roczne, a nie kwartalne).
+```{r}
+library(forecast)
+```
+
+# Analiza
+
+## Główne cechy danych
+
+Na początku dane zostały załadowane z plików CSV. W nie interesują nas niektóre
+z linii widocznych w pliku (linie 1-44 ze względu na metadane i dane roczne, a
+nie kwartalne).
 
 ```{r}
 wydatki <- ts(read.csv('wydatki.csv',
@@ -50,10 +76,101 @@ komunikacja <- window(komunikacja, start = start(komunikacja), end = c(2019, 04)
 
 Na początku zostały przedstawione dane na kilku wykresach.
 
-```{r}
-par(mfrow = c(1,2))
-monthplot(wydatki)
-monthplot(komunikacja)
+```{r base, fig.cap="Wydatki w czasie przed jakąkolwiek obróbką", fig.height=6}
+par(mfrow=c(2,1), mar=c(2,4,2,2))
+plot(wydatki)
+plot(komunikacja)
 ```
 
-Na wykresie widać wyraźnie trendy wzrostowe między odpowiadającymi kwartałami. Załamanie w wydatkach wynika z kryzysu w 2007-2009 roku spowodowanym załamaniem rynku kredytów hipotecznych wysokiego ryzyka.
+Na wykresie \@ref(fig:base) bardzo wyraźnie widać sezonowość w postaci "ząbków"
+dla wydatków ogólnych, czego na pierwszy rzut oka nie można stwierdzić o
+wydatkach na komunikację. Oba szeregi zawierają wyraźny trend.
+
+```{r month, fig.cap="Wykresy `monthplot` jak widać mogą dotyczyć nie tylko miesięcy, ale innych okresów w roku, takich jak kwartały. Dla czytelności wykresy zostały podpisane na osi poziomej, jednak kwota wydatków jest na osi pionowej"}
+par(mfrow = c(1,2), mar=c(5,3,4,1))
+monthplot(wydatki, ylab = NA, xlab = "wydatki")
+monthplot(komunikacja, ylab = NA, xlab = "komunikacja")
+```
+
+Na wykresie \@ref(fig:month) widać wyraźnie trendy wzrostowe między
+odpowiadającymi kwartałami, więc zależność została zachowana w przypadku obu
+szeregów. Jak łatwo zauważyć dla wydatków nie występuje "ząbkowanie" na
+poszczególnych wykresach, dlatego można wnioskować, że ich sezonowość to pewna
+wielokrotność 4. Może to wynikać z wyższych kosztów w kwartale 4 ze względu na
+ogrzewanie i droższą żywność ze względu na zwiększony import w miesiącach
+jesienno-zimowych. Załamanie w wydatkach wynika z kryzysu w 2007-2009 roku
+spowodowanym załamaniem rynku kredytów hipotecznych wysokiego ryzyka.
+
+```{r box, fig.cap="Wydatki w gospodarstwach domowych ogółem oraz na komunikację."}
+par(mfrow = c(1,2))
+boxplot(wydatki, xlab="wydatki")
+boxplot(komunikacja, xlab="komunikacja")
+```
+
+Wykresy na rysunku \@ref(fig:box) nie zostały pokazane na jednej osi ze względu
+na bardzo rozbieżne wartości między szeregami, przez co dane nt. komunikacji nie
+były czytelne. Jak można zauważyć dużo dłuższe linie błędu są w górę w przypadku
+wydatków i w dół dla komunikacji.
+
+```{r lagwydatki, fig.cap="Lag plot wydatków"}
+lag.plot(wydatki, lags = 4, labels = F)
+```
+
+Jak widać na wykresach z rysunku \@ref(fig:lagwydatki) najbardziej
+skoncentrowane wartości są dla `lag=4`, czego można się było spodziewać przy
+analizie rysunku \@ref(fig:month).
+
+```{r tsdisplaywyd, fig.cap="Wykresy z autokorelacją dla wydatków", fig.height=4}
+tsdisplay(wydatki)
+```
+
+```{r tsdisplaykom, fig.cap="Wykresy z autokorelacją dla komunikacji", fig.height=4}
+tsdisplay(komunikacja)
+```
+
+Na wykresach generowanych przez funkcję `tsdisplay` (rysunki
+\@ref(fig:tsdisplaywyd) i \@ref(fig:tsdisplaykom)) bardzo dobrze widać, że dla
+ogólnych wydatków największa korelacja jest z rocznym opóźnieniem. Korelacja z
+opóźnieniem dwuletnim jest na granicy istotności, więc w naszych analizach ją
+pominiemy. Zgodnie z przewidywaniami dla wydatków na komunikację nie istnieje
+żadna istotna sezonowość.
+
+## Dekompozycja
+
+Wykorzystana została dekompozycja na podstawie modelu regresji liniowej - na
+pierwszy rzut oka wygląda na adekwatny dla tych szeregów.
+
+```{r decomposedM, fig.cap="Reszty dla szeregu po dekompozycji z usunięciem trendu"}
+wydatkiDM <- decompose(wydatki, type = "multiplicative")
+tsdisplay(wydatkiDM$random)
+```
+
+Jak widać na rysunku \@ref(fig:decomposedM) czysta dekompozycja nie była w
+stanie sobie poradzić z tym szeregiem. Nadal bardzo widoczna jest autokorelacja
+dla $\texttt{lag}=4n,n\in \mathbb{N}$
+
+```{r decomposedA, fig.cap="Reszty dla szeregu po dekompozycji z usunięciem trendu"}
+wydatkiDA <- decompose(wydatki, type = "additive")
+tsdisplay(wydatkiDA$random)
+```
+
+W tym wypadku model multiplikatywny z rysunku \@ref(fig:decomposedM) wydaje się lepszym
+rozwiązaniem.
+
+Postanowiono 
+
+## Eliminacja trendu i sezonowości
+
+## Sprowadzenie szeregów do szeregów stacjonarnych
+
+## Prognozowanie naiwne
+
+### Porównanie modeli prognozowania
+
+## Wyznaczenie współczynników dla modelu AR
+
+## Wyznaczenie współczynników dla modelu MA
+
+## Wyznaczenie optymalnych modeli
+
+# Wnioski
