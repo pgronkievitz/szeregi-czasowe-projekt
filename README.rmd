@@ -47,7 +47,7 @@ takie usługi będą wyższe ze względu na częstość wykorzystania takich mo�
 
 Do ich obróbki zostały użyte biblioteki zaimportowane poniżej
 
-```{r}
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
 library(forecast)
 ```
 
@@ -115,6 +115,9 @@ wydatków i w dół dla komunikacji.
 ```{r lagwydatki, fig.cap="Lag plot wydatków"}
 lag.plot(wydatki, lags = 4, labels = F)
 ```
+```{r lagkokmunikacja, fig.cap="Lag plot komunikacji"}
+lag.plot(komunikacja, lags = 4, labels = F)
+```
 
 Jak widać na wykresach z rysunku \@ref(fig:lagwydatki) najbardziej
 skoncentrowane wartości są dla `lag=4`, czego można się było spodziewać przy
@@ -140,28 +143,60 @@ pominiemy. Zgodnie z przewidywaniami dla wydatków na komunikację nie istnieje
 Wykorzystana została dekompozycja na podstawie modelu regresji liniowej - na
 pierwszy rzut oka wygląda na adekwatny dla tych szeregów.
 
-```{r decomposedM, fig.cap="Reszty dla szeregu po dekompozycji z usunięciem trendu"}
+```{r decomposedWydatkiM, fig.cap="Reszty dla szeregu po dekompozycji multiplikatywnej trendu z wydatków"}
 wydatkiDM <- decompose(wydatki, type = "multiplicative")
 tsdisplay(wydatkiDM$random)
 ```
 
-Jak widać na rysunku \@ref(fig:decomposedM) czysta dekompozycja nie była w
+Jak widać na rysunku \@ref(fig:decomposedWydatkiM) czysta dekompozycja nie była w
 stanie sobie poradzić z tym szeregiem. Nadal bardzo widoczna jest autokorelacja
 dla $\texttt{lag}=4n,n\in \mathbb{N}$
 
-```{r decomposedA, fig.cap="Reszty dla szeregu po dekompozycji z usunięciem trendu"}
+```{r decomposedWydatkiA, fig.cap="Reszty dla szeregu po dekompozycji addytywnej trendu z wydatków"}
 wydatkiDA <- decompose(wydatki, type = "additive")
 tsdisplay(wydatkiDA$random)
 ```
 
-W tym wypadku model multiplikatywny z rysunku \@ref(fig:decomposedM) wydaje się lepszym
-rozwiązaniem.
+W tym wypadku model multiplikatywny z rysunku \@ref(fig:decomposedWydatkiM)
+wydaje się lepszym rozwiązaniem ze względu na charakter danych - zmiany takie
+jak inflacja nakładają się mnożąc zmiany (np. coś przy inflacji na poziomie
+$5\%$ po dwóch latach będzie kosztować $1,05^2x$, a nie $(1,05+1,05)x$).
 
-Postanowiono 
+Analogicznie postąpiono dla danych nt. wydatków na komunikację.
+
+```{r decomposedkomunikacjaM, fig.cap="Reszty dla szeregu po dekompozycji multiplikatywnej trendu z komunikacji"}
+komunikacjaDM <- decompose(komunikacja, type = "multiplicative")
+tsdisplay(komunikacjaDM$random)
+```
+
+```{r decomposedkomunikacjaA, fig.cap="Reszty dla szeregu po dekompozycji addytywnej trendu z komunikacji"}
+komunikacjaDA <- decompose(komunikacja, type = "additive")
+tsdisplay(komunikacjaDA$random)
+```
+Jak widać na rysunkach \@ref(fig:decomposedkomunikacjaM) i \@ref(fig:decomposedkomunikacjaA)
+dekompozycja dla komunikacji dała od razu dużo
+lepsze efekty niż w przypadku wydatków ogólnych. Wynika to z faktu, że ten
+szereg nie zawiera żadnych istotnych autokorelacji. Nie zmieniło się natomiast
+nic w kwestii doboru metody - lepszym rozwiązaniem w tym wypadku jest
+dekompozycja multiplikatywna.
 
 ## Eliminacja trendu i sezonowości
 
-## Sprowadzenie szeregów do szeregów stacjonarnych
+Następnie usunięto trend przez transformację Boxa-Coxa z automatyczną lambdą
+oraz różnicowanie z opóźnieniem równym 1 i 8 dla komunikacji i równym kolejno
+4, 1 i 5 dla wydatków.
+
+```{r diffWydatki}
+wydatkiL <- BoxCox(wydatki, BoxCox.lambda(wydatki))
+wydatkiL.4.1.5 <- diff(diff(diff(wydatkiL, lag=4)), lag=5)
+tsdisplay(wydatkiL.4.1.5)
+```
+```{r diffKomunikacja}
+komunikacjaL <- BoxCox(komunikacja, BoxCox.lambda(komunikacja))
+komunikacjaL.1.8 <- diff(diff(komunikacjaL), lag=8)
+tsdisplay(komunikacjaL.1.8)
+```
+
 
 ## Prognozowanie naiwne
 
