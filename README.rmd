@@ -1,4 +1,59 @@
-# Projekt szeregi czasowe
+---
+title: "Szeregi czasowe - Projekt"
+author: "Patryk Gronkiewicz 164157"
+subtitle: Analiza konsumpcji i wydatków na komunikację w UK
+output: pdf_document
+papersize: a4
+lang: pl
+toc: true
+df_print: default
+highlight: tango
+---
 
-[Całkowity koszt konsumpcji w domostwach](https://www.ons.gov.uk/economy/nationalaccounts/satelliteaccounts/timeseries/abqi/ct)
-[Wydatki na komunikację](https://www.ons.gov.uk/economy/nationalaccounts/satelliteaccounts/timeseries/zawv/ct)
+# Użyte dane
+
+W projekcie użyto danych na temat:
+
+1.  [Całkowitego kosztu konsumpcji w gospodarstwach domowych UK](https://www.ons.gov.uk/economy/nationalaccounts/satelliteaccounts/timeseries/abqi/ct) jako szereg z sezonowością (zawiera także trend).
+2.  [Wydatków na komunikację w UK](https://www.ons.gov.uk/economy/nationalaccounts/satelliteaccounts/timeseries/zawv/ct) jako szereg z trendem.
+
+Dane te pochodzą z ONS (odpowiednik GUS-u). W analizie zostanie pominięty okres od 2019Q4 jako anomalia ze względu na pandemię.
+
+Już na oficjalnej stronie można zauważyć, że dane te w obu przypadkach zawierają wyraźny trend wzrostowy, natomiast jedynie całkowity koszt konsumpcji ma wyraźną sezonowość z peakiem w czwartym kwartale każdego roku.
+
+Szereg zawierający dane nt. komunikacji odnosi się do wydatków na usługi pocztowe oraz telefon i fax (z uwzględnieniem sprzętu, jak i usług).
+
+W danych dotyczących wydatków Brytyjczyków uwzględnione zostały wydatki w gospodarstwach zarówno rezydentów i nierezydentów (osób posiadających brytyjski paszport lub nie - jest to koncept inny od obywateli państwa)
+
+W obu przypadkach dane opublikowane zostały 31.03.2021 roku z danymi za 2020Q4, więc można zauważyć, że dostępne są z kwartalnym opóźnieniem.
+
+Analiza tych szeregów pozwala na lepsze planowanie wydatków, nawet na poziomie pojedynczego gospodarstwa ze względu na możliwość uwzględnienia wzrostu cen czy inflacji stylu życia. Analiza wydatków na komunikację jest także dobrym wskaźnikiem do przekazania jak bardzo "zdalne" społeczeństwo jest. W społeczeństwie, w którym małe grupy ludzi dzielą znaczne odległości wydatki na takie usługi będą wyższe ze względu na częstość wykorzystania takich możliwości.
+
+# Główne cechy danych
+
+Na początku dane zostały załadowane z plików CSV. W nie interesują nas niektóre z linii widocznych w pliku (linie 1-44 ze względu na metadane i dane roczne, a nie kwartalne).
+
+```{r}
+wydatki <- ts(read.csv('wydatki.csv',
+                          skip=43,
+                          col.names = c("q", "v"))$v,
+                 start = c(1985, 01),
+                 frequency = 4)
+komunikacja <- ts(read.csv('komunikacja.csv',
+                          skip=43,
+                          col.names = c("q", "v"))$v,
+                 start = c(1985, 01),
+                 frequency = 4)
+wydatki <- window(wydatki, start = start(wydatki), end = c(2019, 04))
+komunikacja <- window(komunikacja, start = start(komunikacja), end = c(2019, 04))
+```
+
+Na początku zostały przedstawione dane na kilku wykresach.
+
+```{r}
+par(mfrow = c(1,2))
+monthplot(wydatki)
+monthplot(komunikacja)
+```
+
+Na wykresie widać wyraźnie trendy wzrostowe między odpowiadającymi kwartałami. Załamanie w wydatkach wynika z kryzysu w 2007-2009 roku spowodowanym załamaniem rynku kredytów hipotecznych wysokiego ryzyka.
