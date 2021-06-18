@@ -8,16 +8,25 @@ lang: pl
 toc: true
 df_print: default
 highlight: tango
+abstract: |
+  Analiza danych dotyczących komunikacji i ogólnych wydatków gospodarstw
+  domowych w UK pozwala na przewidzenie zachowań rynku oraz zaplanowania
+  wydatków zarówno dla osób prywatnych, jak i firm pocztowych i
+  telekomunikacyjnych
 ---
+```{r setup, include=FALSE, warning=FALSE}
+library(knitr)
+knitr::opts_chunk$set(cache = TRUE)
+```
 
 # Użyte dane
 
 W projekcie użyto danych na temat:
 
-1.  [Całkowitego kosztu konsumpcji w gospodarstwach domowych
+1. [Całkowitego kosztu konsumpcji w gospodarstwach domowych
     UK](https://www.ons.gov.uk/economy/nationalaccounts/satelliteaccounts/timeseries/abqi/ct)
     jako szereg z sezonowością (zawiera także trend).
-2.  [Wydatków na komunikację w
+2. [Wydatków na komunikację w
     UK](https://www.ons.gov.uk/economy/nationalaccounts/satelliteaccounts/timeseries/zawv/ct)
     jako szereg z trendem.
 
@@ -59,7 +68,7 @@ Na początku dane zostały załadowane z plików CSV. W nie interesują nas niek
 z linii widocznych w pliku (linie 1-44 ze względu na metadane i dane roczne, a
 nie kwartalne).
 
-```{r}
+```{r import}
 wydatki <- ts(read.csv('wydatki.csv',
                           skip=43,
                           col.names = c("q", "v"))$v,
@@ -86,7 +95,7 @@ Na wykresie \@ref(fig:base) bardzo wyraźnie widać sezonowość w postaci "ząb
 dla wydatków ogólnych, czego na pierwszy rzut oka nie można stwierdzić o
 wydatkach na komunikację. Oba szeregi zawierają wyraźny trend.
 
-```{r month, fig.cap="Wykresy `monthplot` jak widać mogą dotyczyć nie tylko miesięcy, ale innych okresów w roku, takich jak kwartały. Dla czytelności wykresy zostały podpisane na osi poziomej, jednak kwota wydatków jest na osi pionowej"}
+```{r month, fig.cap="Wykresy monthplot jak widać mogą dotyczyć nie tylko miesięcy, ale innych okresów w roku, takich jak kwartały. Dla czytelności wykresy zostały podpisane na osi poziomej, jednak kwota wydatków jest na osi pionowej"}
 par(mfrow = c(1,2), mar=c(5,3,4,1))
 monthplot(wydatki, ylab = NA, xlab = "wydatki")
 monthplot(komunikacja, ylab = NA, xlab = "komunikacja")
@@ -121,7 +130,8 @@ lag.plot(komunikacja, lags = 4, labels = F)
 
 Jak widać na wykresach z rysunku \@ref(fig:lagwydatki) najbardziej
 skoncentrowane wartości są dla `lag=4`, czego można się było spodziewać przy
-analizie rysunku \@ref(fig:month).
+analizie rysunku \@ref(fig:month). Dla komunikacji natomiast najbardziej
+skoncentrowane wartości są dla `lag=1`.
 
 ```{r tsdisplaywyd, fig.cap="Wykresy z autokorelacją dla wydatków", fig.height=4}
 tsdisplay(wydatki)
@@ -173,8 +183,8 @@ tsdisplay(komunikacjaDM$random)
 komunikacjaDA <- decompose(komunikacja, type = "additive")
 tsdisplay(komunikacjaDA$random)
 ```
-Jak widać na rysunkach \@ref(fig:decomposedkomunikacjaM) i \@ref(fig:decomposedkomunikacjaA)
-dekompozycja dla komunikacji dała od razu dużo
+Jak widać na rysunkach \@ref(fig:decomposedkomunikacjaM) i
+\@ref(fig:decomposedkomunikacjaA) dekompozycja dla komunikacji dała od razu dużo
 lepsze efekty niż w przypadku wydatków ogólnych. Wynika to z faktu, że ten
 szereg nie zawiera żadnych istotnych autokorelacji. Nie zmieniło się natomiast
 nic w kwestii doboru metody - lepszym rozwiązaniem w tym wypadku jest
@@ -182,30 +192,205 @@ dekompozycja multiplikatywna.
 
 ## Eliminacja trendu i sezonowości
 
-Następnie usunięto trend przez transformację Boxa-Coxa z automatyczną lambdą
-oraz różnicowanie z opóźnieniem równym 1 i 8 dla komunikacji i równym kolejno
-4, 1 i 5 dla wydatków.
+Do wyznaczenia współczynników użyta została metoda graficzna - po każdej z
+transformacji na danych tworzymy wykres, z którego możemy odczytać potencjalne 
+wartości.
 
-```{r diffWydatki}
+```{r wydatkiBoxCox, fig.cap="Wykres wydatków po transformacji Boxa-Coxa"}
 wydatkiL <- BoxCox(wydatki, BoxCox.lambda(wydatki))
-wydatkiL.4.1.5 <- diff(diff(diff(wydatkiL, lag=4)), lag=5)
-tsdisplay(wydatkiL.4.1.5)
+
+tsdisplay(wydatkiL)
 ```
-```{r diffKomunikacja}
+Po transformacji Boxa-Coxa jedyną szpilką wyróżniającą się na tle pozostałych
+jest lag równy 5 dla wydatków (\@ref(fig:wydatkiBoxCox)), pozostałe są
+nieistotne statystycznie. 
+
+```{r komunikacjaBoxCox, fig.cap="Wykres wydatków na komunikację po transformacji Boxa-Coxa"}
 komunikacjaL <- BoxCox(komunikacja, BoxCox.lambda(komunikacja))
-komunikacjaL.1.8 <- diff(diff(komunikacjaL), lag=8)
-tsdisplay(komunikacjaL.1.8)
+tsdisplay(komunikacjaL)
 ```
 
+Natomiast dla wydatków na komunikację nie istnieje żadna wyróżniająca się
+wartość (\@ref(fig:komunikacjaBoxCox)) - znaczy to, że na ten moment nie
+będziemy używać różnicowania na tym szeregu.
 
-## Prognozowanie naiwne
+```{r wydatkidiff1, fig.cap="Wydatki po transformacji Boxa-Coxa i różnicowaniu z lagiem 1"}
+wydatkiL.1 <-diff(wydatkiL, lag=1)
+tsdisplay(wydatkiL.1)
+```
 
-### Porównanie modeli prognozowania
+Bardzo widoczną szpilką jest teraz `lag=4`, dlatego ponowiono działanie.
+
+```{r wydatki diff1-4, fig.cap="Wydatki po transformacji Boxa-Coxa i różnicowaniu z lagiem 1 i 4"}
+wydatkiL.1.4 <-diff(wydatkiL.1, lag=4)
+tsdisplay(wydatkiL.1.4)
+```
+
+Z powyższych wynika, że współczynniki dla modelu AR powinny wynosić 1 oraz 4
+dla szeregu wydatków. Następnie postąpiono analogicznie z szeregiem wydatków
+na komunikację.
+
+```{r komunikcjadiff1, fig.cap="Wydatki na komunikację po transformacji Boxa-Coxa i różnicowaniu z lagiem 1"}
+komunikacjaL.1 <-diff(komunikacjaL, lag=1)
+tsdisplay(komunikacjaL.1)
+```
+
+Jak widać po zróżnicowaniu nie ma już potrzeby wyznaczać ręcznie kolejnych
+współczynników. Jedyną wartością, która nieznacznie odstaje jest dla wartości
+8, jednak można ją pominąć.
+
+Wyznaczymy jeszcze współczynniki przez funkcję, która robi to automatycznie.
 
 ## Wyznaczenie współczynników dla modelu AR
 
+Następnie zostały wyznaczone współczynniki dla modelu AR. W tym celu użyto
+funkcji `Pacf` na szeregach już odsezonowanych i pozbawionych trendu.
+
+```{r ar, fig.cap="Wykresy częściowej autokorelacji"}
+par(mfrow=c(2,1))
+Pacf(wydatkiL.1.4, lag.max = 40)
+Pacf(komunikacjaL.1, lag.max = 40)
+```
+
+Z wykresów na rysunku \@ref(fig:ar) wynika, że dla wydatków należy sprawdzić
+`AR(4)` i `AR(28)`, natomiast dla komunikacji `AR(8)`, `AR(24)` i rozważyć
+`AR(14)`.
+
+Sprawdzono także wyniki zaproponowane przez funkcję, która automatycznie
+dostosowuje współczynniki autoregresji.
+
+```{r arauto}
+ar(wydatkiL.1.4, order.max = 24, aic = T, method = "yule-walker")
+ar(komunikacjaL.1, order.max = 28, aic = T, method = "yule-walker")
+```
+
+Dla szeregów zostały wyznaczone modele następujących rzędów - 5 i 0. W drugim
+przypadku znaczy to, że autoregresja nie ma zastosowania.
+
+W celu wyznaczenia wartości kryteriów informacyjnych użyto funkcji `Arima`
+z rzędem `(p, 0, 0)`. Dla wydatków na komunikację nie sprawdzono dopasowania
+ze względu na rząd zerowy.
+
+```{r ararima}
+Arima(wydatkiL.1.4, order = c(5, 0, 0))
+```
+
 ## Wyznaczenie współczynników dla modelu MA
+
+W celu ręcznego wyznaczenia współczynników dla modelu MA użyto funkcji `Acf`.
+Efekty jej działania widoczne są na rysunku \@reg(fig:ma).
+
+```{r ma, fig.cap="Wykresy autokorelacji"}
+par(mfrow=c(2,1))
+Acf(wydatkiL.1.4, lag.max = 40)
+Acf(komunikacjaL.1, lag.max = 40)
+```
+
+Dla szeregu wydatków wyraźnie wybija się szpilka dla `lag=4`, natomiast dla 5
+i 6 znajdują się na granicy istotności statystycznej, z tego powodu
+uwzględniony jedynie współczynnik `MA(4)`.
+
+Dla szeregu dotyczącego wydatków na komunikację widoczne są 3 istotnie odstające
+szpilki - dla `MA(24)`, `MA(28)` oraz dla `MA(8)`. Po testach okazało się, że
+`MA(8)` ma najlepsze dopasowanie.
+
+Aby wyznaczyć odpowiednie współczynniki `MA` automatycznie użyto także funkcji
+ARIMA.
+
+```{r maarima}
+Arima(wydatkiL.1.4, order = c(0,0,4))
+Arima(komunikacjaL.1, order = c(0,0,8))
+```
 
 ## Wyznaczenie optymalnych modeli
 
+```{r autoarima}
+(wydatki.auto <- auto.arima(wydatkiL.1.4))
+(komunikacja.auto <- auto.arima(komunikacjaL.1))
+```
+
+## Porównanie modeli
+
+Wszystkie współczynniki zostały sprowadzone do tabeli w celu łatwiejszego
+porównania
+
+| Model               |        AIC   |         AICc |          BIC |
+|:--------------------|-------------:|-------------:|-------------:|
+| AR(5)               | 355.53 $\pm$ | 356.42 $\pm$ | 375.87 $-$   |
+| MA(4)               | 357.52 $-$   | 358.17 $-$   | 374.95 $\pm$ |
+| ARIMA(0,0,0)(0,0,1) | 352.05 $+$   | 352.14 $+$   | 357.86 $+$   |
+: Porównanie współczynników AIC, AICc i BIC dla szeregu wydatków.
+
+| Model               |        AIC |       AICc |        BIC |
+|:--------------------|-----------:|-----------:|-----------:|
+| MA(8)               | 819.5  $-$ | 821.21 $-$ | 848.84 $-$ |
+| ARIMA(3,1,0)(2,0,1) | 811.46 $+$ | 812.32 $+$ | 831.95 $+$ |
+: Porównanie współczynników AIC, AICc i BIC dla szeregu wydatków na komunikację.
+
+Jak widać w każdym z przypadków najlepszym okazał się automatycznie dobrany
+model ARIMA.
+
+## Prognozowanie naiwne
+
+Zastosowano kilka metod prognozowania. Pierwszą zastosowaną metodą była obliczona
+na podstawie średniej. Jak widać na rysunku \@ref(fig:meanforecast) jest ona
+nieprzystająca do faktycznych danych. Wynika to z faktu, że oba szeregi zawierają
+trend, natomiast szereg wydatków ogólnych dodatkowo zawiera sezonowość.
+
+```{r meanforecast, fig.cap="Wykresy z przewidywanymi wartościami na podstawie średniej"}
+wydatki.mean.forecast <- meanf(wydatki, h = 12)
+komunikacja.mean.forecast <- meanf(komunikacja, h = 12)
+
+par(mfrow=c(2,1))
+plot(wydatki.mean.forecast)
+plot(komunikacja.mean.forecast)
+```
+
+Jak widać na rysunku \@ref(naiveforecast) metoda naiwna daje znacznie lepsze
+rezultaty od średniej. Znaczy to, że o wiele lepsze dopasowanie daje poprzedni
+pomiar niż średnia z całości.
+
+```{r naiveforecast, fig.cap="Wykresy z przewidywanymi wartościami na podstawie poprzedniego okresu"}
+wydatki.naive.forecast <- naive(wydatki, h = 12)
+komunikacja.naive.forecast <- naive(komunikacja, h = 12)
+
+par(mfrow=c(2,1))
+plot(wydatki.naive.forecast)
+plot(komunikacja.naive.forecast)
+```
+
+Metoda z rysunku \@ref(fig:snaive) jest nieco gorsza od prognozowania na podstawie
+poprzedniego pomiaru, ponieważ trend ma dużo większe znaczenie w tym przypadku
+niż sezonowość.
+
+```{r snaiveforecast, fig.cap="Wykresy z przewidywanymi wartościami na podstawie poprzedniego sezonu"}
+wydatki.snaive.forecast <- snaive(wydatki, h = 12)
+komunikacja.snaive.forecast <- snaive(komunikacja, h = 12)
+
+par(mfrow=c(2,1))
+plot(wydatki.snaive.forecast)
+plot(komunikacja.snaive.forecast)
+```
+
+Metoda oparta o dryf wydaje się w tym przypadku najlepszą metodą naiwną.
+
+```{r rwfforecast, fig.cap="Wykresy z przewidywanymi wartościami na podstawie dryfu"}
+wydatki.rwf.forecast <- rwf(wydatki, h = 12, drift = T)
+komunikacja.rwf.forecast <- rwf(komunikacja, h = 12, drift = T)
+
+par(mfrow=c(2,1))
+plot(wydatki.rwf.forecast)
+plot(komunikacja.rwf.forecast)
+```
+
 # Wnioski
+
+Jak widać na danych, które zostały przeanalizowane, z dość dobrą dokładnością
+można obliczyć parametry danego szeregu. Pozwala to na przewidzenie zachowania
+rynku nie tylko jako całości, ale też danego sektora jak np. komunikacja. Dzięki
+temu możemy lepiej zaplanować strategię biznesową jako firma czy uwzględnić
+różnice w koszcie życia w danym czasie.
+
+Dzięki takiej analizie nawet "szary Kowalski" może zauważyć, że ceny rosną,
+więc może się przekonać, że jego oszczędności bez inwestycji za jakiś czas mogą
+okazać się zupełnie bezwartościowe.
