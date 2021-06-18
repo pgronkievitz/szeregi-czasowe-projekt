@@ -12,7 +12,7 @@ abstract: |
   Analiza danych dotyczących komunikacji i ogólnych wydatków gospodarstw
   domowych w UK pozwala na przewidzenie zachowań rynku oraz zaplanowania
   wydatków zarówno dla osób prywatnych, jak i firm pocztowych i
-  telekomunikacyjnych
+  telekomunikacyjnych.
 ---
 ```{r setup, include=FALSE, warning=FALSE}
 library(knitr)
@@ -172,19 +172,23 @@ wydaje się lepszym rozwiązaniem ze względu na charakter danych - zmiany takie
 jak inflacja nakładają się mnożąc zmiany (np. coś przy inflacji na poziomie
 $5\%$ po dwóch latach będzie kosztować $1,05^2x$, a nie $(1,05+1,05)x$).
 
-Analogicznie postąpiono dla danych nt. wydatków na komunikację.
+Analogicznie postąpiono dla danych nt. wydatków na komunikację. Wykorzystano
+dekompozycję multiplikatywną.
 
 ```{r decomposedkomunikacjaM, fig.cap="Reszty dla szeregu po dekompozycji multiplikatywnej trendu z komunikacji"}
 komunikacjaDM <- decompose(komunikacja, type = "multiplicative")
 tsdisplay(komunikacjaDM$random)
 ```
 
-```{r decomposedkomunikacjaA, fig.cap="Reszty dla szeregu po dekompozycji addytywnej trendu z komunikacji"}
+A następnie addytywną (rys. \@ref(fig:decka)).
+
+```{r decka, fig.cap="Reszty dla szeregu po dekompozycji addytywnej trendu z komunikacji"}
 komunikacjaDA <- decompose(komunikacja, type = "additive")
 tsdisplay(komunikacjaDA$random)
 ```
+
 Jak widać na rysunkach \@ref(fig:decomposedkomunikacjaM) i
-\@ref(fig:decomposedkomunikacjaA) dekompozycja dla komunikacji dała od razu dużo
+\@ref(fig:decka) dekompozycja dla komunikacji dała od razu dużo
 lepsze efekty niż w przypadku wydatków ogólnych. Wynika to z faktu, że ten
 szereg nie zawiera żadnych istotnych autokorelacji. Nie zmieniło się natomiast
 nic w kwestii doboru metody - lepszym rozwiązaniem w tym wypadku jest
@@ -196,13 +200,14 @@ Do wyznaczenia współczynników użyta została metoda graficzna - po każdej z
 transformacji na danych tworzymy wykres, z którego możemy odczytać potencjalne 
 wartości.
 
-```{r wydatkiBoxCox, fig.cap="Wykres wydatków po transformacji Boxa-Coxa"}
+```{r wydbc, fig.cap="Wykres wydatków po transformacji Boxa-Coxa"}
 wydatkiL <- BoxCox(wydatki, BoxCox.lambda(wydatki))
 
 tsdisplay(wydatkiL)
 ```
+
 Po transformacji Boxa-Coxa jedyną szpilką wyróżniającą się na tle pozostałych
-jest lag równy 5 dla wydatków (\@ref(fig:wydatkiBoxCox)), pozostałe są
+jest lag równy 5 dla wydatków (\@ref(fig:wydbc)), pozostałe są
 nieistotne statystycznie. 
 
 ```{r komunikacjaBoxCox, fig.cap="Wykres wydatków na komunikację po transformacji Boxa-Coxa"}
@@ -211,7 +216,7 @@ tsdisplay(komunikacjaL)
 ```
 
 Natomiast dla wydatków na komunikację nie istnieje żadna wyróżniająca się
-wartość (\@ref(fig:komunikacjaBoxCox)) - znaczy to, że na ten moment nie
+wartość (rys. \@ref(fig:komunikacjaBoxCox)) - znaczy to, że na ten moment nie
 będziemy używać różnicowania na tym szeregu.
 
 ```{r wydatkidiff1, fig.cap="Wydatki po transformacji Boxa-Coxa i różnicowaniu z lagiem 1"}
@@ -346,7 +351,7 @@ plot(wydatki.mean.forecast)
 plot(komunikacja.mean.forecast)
 ```
 
-Jak widać na rysunku \@ref(naiveforecast) metoda naiwna daje znacznie lepsze
+Jak widać na rysunku \@ref(fig:naiveforecast) metoda naiwna daje znacznie lepsze
 rezultaty od średniej. Znaczy to, że o wiele lepsze dopasowanie daje poprzedni
 pomiar niż średnia z całości.
 
@@ -359,9 +364,9 @@ plot(wydatki.naive.forecast)
 plot(komunikacja.naive.forecast)
 ```
 
-Metoda z rysunku \@ref(fig:snaive) jest nieco gorsza od prognozowania na podstawie
-poprzedniego pomiaru, ponieważ trend ma dużo większe znaczenie w tym przypadku
-niż sezonowość.
+Metoda z rysunku \@ref(fig:snaiveforecast) jest nieco gorsza od prognozowania na
+podstawie poprzedniego pomiaru, ponieważ trend ma dużo większe znaczenie w tym
+przypadku niż sezonowość.
 
 ```{r snaiveforecast, fig.cap="Wykresy z przewidywanymi wartościami na podstawie poprzedniego sezonu"}
 wydatki.snaive.forecast <- snaive(wydatki, h = 12)
